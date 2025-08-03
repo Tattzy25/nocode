@@ -1,4 +1,4 @@
-import { pgTable, uuid, text, boolean, decimal, timestamp, date, array, integer } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, boolean, decimal, timestamp, date, integer } from 'drizzle-orm/pg-core';
 
 export const users = pgTable('users', {
   id: uuid('id').primaryKey().defaultRandom(),
@@ -28,9 +28,9 @@ export const equipment = pgTable('equipment', {
   location: text('location').notNull(),
   latitude: decimal('latitude', { precision: 10, scale: 8 }),
   longitude: decimal('longitude', { precision: 11, scale: 8 }),
-  features: text('features').array().notNull().default([]),
-  images: text('images').array().notNull().default([]),
-  verification_documents: text('verification_documents').array().notNull().default([]),
+  features: text('features').notNull().default('[]'),
+  images: text('images').notNull().default('[]'),
+  verification_documents: text('verification_documents').notNull().default('[]'),
   is_verified: boolean('is_verified').default(false),
   is_active: boolean('is_active').default(true),
   created_at: timestamp('created_at').defaultNow(),
@@ -76,7 +76,7 @@ export const reviews = pgTable('reviews', {
   booking_id: uuid('booking_id').notNull().references(() => bookings.id, { onDelete: 'cascade' }),
   reviewer_id: uuid('reviewer_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
   equipment_id: uuid('equipment_id').notNull().references(() => equipment.id, { onDelete: 'cascade' }),
-  rating: integer('rating').notNull().check('rating >= 1 AND rating <= 5'),
+  rating: integer('rating').notNull(),
   comment: text('comment'),
   created_at: timestamp('created_at').defaultNow(),
 });

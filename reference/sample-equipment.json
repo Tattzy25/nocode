@@ -1,0 +1,126 @@
+{
+  "scooters": [
+    {
+      "id": "scooter-1",
+      "title": "Pride Mobility Go-Go Elite Traveller",
+      "type": "scooter",
+      "subtype": "travel",
+      "location": "Downtown Los Angeles, CA",
+      "daily_price": 45,
+      "images": [
+        "https://images.unsplash.com/photo-1581833971358-2c8b550f87b3?w=400&h=300&fit=crop",
+        "https://images.unsplash.com/photo-1581833971358-2c8b550f87b3?w=400&h=300&fit=crop&sat=-20"
+      ],
+      "features": ["Lightweight", "Foldable", "LED Lights", "Cup Holder"],
+      "rating": 4.9,
+      "reviews": 127,
+      "host": {
+        "name": "Sarah M.",
+        "rating": 4.8,
+        "response_time": "Usually responds within an hour"
+      }
+    },
+    {
+      "id": "scooter-2", 
+      "title": "Drive Medical Scout Compact Travel Scooter",
+      "type": "scooter",
+      "subtype": "compact",
+      "location": "Santa Monica, CA",
+      "daily_price": 38,
+      "images": [
+        "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=300&fit=crop",
+        "https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400&h=300&fit=crop&sat=-20"
+      ],
+      "features": ["Compact Design", "Easy Assembly", "Adjustable Seat", "Storage Basket"],
+      "rating": 4.7,
+      "reviews": 89,
+      "host": {
+        "name": "Michael R.",
+        "rating": 4.9,
+        "response_time": "Usually responds within 2 hours"
+      }
+    },
+    {
+      "id": "scooter-3",
+      "title": "Golden Technologies Buzzaround XLS-HD",
+      "type": "scooter", 
+      "subtype": "heavy-duty",
+      "location": "Beverly Hills, CA",
+      "daily_price": 55,
+      "images": [
+        "https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?w=400&h=300&fit=crop",
+        "https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?w=400&h=300&fit=crop&sat=-20"
+      ],
+      "features": ["Heavy Duty", "Long Range Battery", "Comfortable Seat", "All-Terrain Tires"],
+      "rating": 4.8,
+      "reviews": 156,
+      "host": {
+        "name": "Jennifer L.",
+        "rating": 5.0,
+        "response_time": "Usually responds within 30 minutes"
+      }
+    }
+  ],
+  "strollers": [
+    {
+      "id": "stroller-1",
+      "title": "UPPAbaby Vista V2 Complete Stroller",
+      "type": "stroller",
+      "subtype": "full-size",
+      "location": "West Hollywood, CA", 
+      "daily_price": 25,
+      "images": [
+        "https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?w=400&h=300&fit=crop&q=80",
+        "https://images.unsplash.com/photo-1544966503-7cc5ac882d5f?w=400&h=300&fit=crop&q=80&sat=-20"
+      ],
+      "features": ["Reversible Seat", "Large Storage", "All-Wheel Suspension", "Easy Fold"],
+      "rating": 4.9,
+      "reviews": 203,
+      "host": {
+        "name": "Amanda K.",
+        "rating": 4.9,
+        "response_time": "Usually responds within an hour"
+      }
+    },
+    {
+      "id": "stroller-2",
+      "title": "Baby Jogger City Mini GT2 All-Terrain",
+      "type": "stroller",
+      "subtype": "jogging",
+      "location": "Manhattan Beach, CA",
+      "daily_price": 22,
+      "images": [
+        "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=300&fit=crop",
+        "https://images.unsplash.com/photo-1578662996442-48f60103fc96?w=400&h=300&fit=crop&sat=-20"
+      ],
+      "features": ["All-Terrain Wheels", "One-Hand Fold", "Adjustable Handlebar", "UV 50+ Canopy"],
+      "rating": 4.8,
+      "reviews": 145,
+      "host": {
+        "name": "David P.",
+        "rating": 4.7,
+        "response_time": "Usually responds within 3 hours"
+      }
+    },
+    {
+      "id": "stroller-3",
+      "title": "Chicco Bravo For2 LE Double Stroller",
+      "type": "stroller",
+      "subtype": "double",
+      "location": "Pasadena, CA",
+      "daily_price": 28,
+      "images": [
+        "https://images.unsplash.com/photo-1555252333-9f8e92e65df9?w=400&h=300&fit=crop",
+        "https://images.unsplash.com/photo-1555252333-9f8e92e65df9?w=400&h=300&fit=crop&sat=-20"
+      ],
+      "features": ["Double Seating", "Independent Recline", "Large Canopies", "Easy Steering"],
+      "rating": 4.6,
+      "reviews": 98,
+      "host": {
+        "name": "Lisa T.",
+        "rating": 4.8,
+        "response_time": "Usually responds within 2 hours"
+      }
+    }
+  ]
+}

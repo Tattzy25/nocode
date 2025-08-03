@@ -134,10 +134,10 @@ export async function GET(request: NextRequest) {
       conditions.push(sql`${equipment.location} ILIKE ${`%${location}%`}`);
     }
     if (minPrice) {
-      conditions.push(gte(equipment.daily_price, parseInt(minPrice)));
+      conditions.push(gte(equipment.daily_price, minPrice));
     }
     if (maxPrice) {
-      conditions.push(lte(equipment.daily_price, parseInt(maxPrice)));
+      conditions.push(lte(equipment.daily_price, maxPrice));
     }
     if (features) {
       const featureList = features.split(',');
@@ -149,7 +149,7 @@ export async function GET(request: NextRequest) {
     if (limit) {
       const limitNum = parseInt(limit);
       if (!isNaN(limitNum) && limitNum > 0) {
-        query = query.limit(limitNum);
+        query = query.limit(limitNum) as any;
       }
     }
 

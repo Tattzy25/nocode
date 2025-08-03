@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { MapPin, Loader2, Navigation } from 'lucide-react'
-import { ErrorPopup } from './ErrorPopup'
+import ErrorPopup from './ErrorPopup'
 
 interface LocationSuggestion {
   id: string
@@ -263,10 +263,10 @@ export default function LocationSearch({
       {/* Error popup */}
       {error && (
         <ErrorPopup
-          message={error}
-          type="error"
+          error={{ message: error, type: 'error' }}
           onClose={() => setError(null)}
-          autoClose={5000}
+          autoClose={true}
+          duration={5000}
         />
       )}
     </div>
