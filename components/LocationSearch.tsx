@@ -108,12 +108,11 @@ export default function LocationSearch({ onLocationSelect, showMap = false }: Lo
   }
 
   return (
-    <>
+    <div className="w-full max-w-4xl mx-auto">
       <ErrorPopup 
         error={error}
         onClose={() => setError(null)}
       />
-      <div className="w-full max-w-4xl mx-auto">
       <div className="relative">
         <div className="flex items-center">
           <div className="relative flex-1">
@@ -149,7 +148,7 @@ export default function LocationSearch({ onLocationSelect, showMap = false }: Lo
                   longitude: suggestion.center ? suggestion.center[0] : suggestion.longitude,
                   price: 0,
                   type: 'search'
-                })
+                })}
                 className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
               >
                 <div className="flex items-center">

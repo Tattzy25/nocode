@@ -112,12 +112,11 @@ export default function MapComponent({
 
 
   return (
-    <>
+    <div className="relative">
       <ErrorPopup 
         error={error}
         onClose={() => setError(null)}
       />
-      <div className="relative">
       {showSearch && (
         <div className="absolute top-4 left-4 z-10 w-80">
           <div className="relative">

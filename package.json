@@ -18,6 +18,7 @@
     "@aws-sdk/s3-request-presigner": "^3.490.0",
     "@clerk/nextjs": "^6.28.1",
     "@neondatabase/serverless": "^0.7.2",
+    "@prisma/client": "^6.13.0",
     "@types/mapbox-gl": "^2.7.0",
     "autoprefixer": "^10.4.16",
     "axios": "^1.6.0",

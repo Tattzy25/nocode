@@ -64,48 +64,47 @@ export default function UserDashboard() {
   }
 
   return (
-    <>
+    <div className="min-h-screen bg-gray-50">
       <ErrorPopup 
         error={error}
         onClose={() => setError(null)}
       />
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">My trips</h1>
-          <p className="text-gray-600 mt-2">Manage your bookings and track your rental history</p>
-        </div>
-
-        {/* Navigation Tabs */}
-        <div className="bg-white rounded-lg shadow mb-6">
-          <div className="border-b border-gray-200">
-            <nav className="flex">
-              {[
-                { id: 'upcoming', label: 'Upcoming', count: upcomingTrips.length },
-                { id: 'past', label: 'Past', count: pastTrips.length },
-                { id: 'saved', label: 'Saved', count: savedItems.length }
-              ].map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center px-6 py-4 border-b-2 font-medium text-sm ${
-                    activeTab === tab.id
-                      ? 'border-primary-500 text-primary-600'
-                      : 'border-transparent text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  {tab.label}
-                  {tab.count > 0 && (
-                    <span className="ml-2 bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs">
-                      {tab.count}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </nav>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-gray-900">My trips</h1>
+            <p className="text-gray-600 mt-2">Manage your bookings and track your rental history</p>
           </div>
-        </div>
+
+          {/* Navigation Tabs */}
+          <div className="bg-white rounded-lg shadow mb-6">
+            <div className="border-b border-gray-200">
+              <nav className="flex">
+                {[
+                  { id: 'upcoming', label: 'Upcoming', count: upcomingTrips.length },
+                  { id: 'past', label: 'Past', count: pastTrips.length },
+                  { id: 'saved', label: 'Saved', count: savedItems.length }
+                ].map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id)}
+                    className={`flex items-center px-6 py-4 border-b-2 font-medium text-sm ${
+                      activeTab === tab.id
+                        ? 'border-primary-500 text-primary-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {tab.label}
+                    {tab.count > 0 && (
+                      <span className="ml-2 bg-gray-100 text-gray-600 px-2 py-1 rounded-full text-xs">
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </nav>
+            </div>
+          </div>
 
         {/* Loading State */}
         {loading && (
