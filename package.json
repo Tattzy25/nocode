@@ -15,12 +15,14 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.490.0",
+    "@aws-sdk/s3-presigned-post": "^3.859.0",
     "@aws-sdk/s3-request-presigner": "^3.490.0",
     "@clerk/nextjs": "^6.28.1",
     "@neondatabase/serverless": "^0.7.2",
     "@prisma/client": "^6.13.0",
     "@radix-ui/react-slot": "^1.2.3",
     "@types/mapbox-gl": "^2.7.0",
+    "@types/uuid": "^10.0.0",
     "autoprefixer": "^10.4.16",
     "axios": "^1.6.0",
     "class-variance-authority": "^0.7.1",
@@ -29,7 +31,7 @@
     "drizzle-kit": "^0.18.1",
     "drizzle-orm": "^0.29.0",
     "lucide-react": "^0.294.0",
-    "mapbox-gl": "^3.0.0",
+    "mapbox-gl": "^3.14.0",
     "next": "^14.0.0",
     "postcss": "^8.4.31",
     "react": "^18.2.0",
@@ -39,6 +41,7 @@
     "recharts": "^2.8.0",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^3.3.0",
+    "uuid": "^11.1.0",
     "zod": "^3.22.4"
   },
   "devDependencies": {

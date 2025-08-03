@@ -53,6 +53,141 @@ export const createGeoJSONSource = (locations: MapLocation[]) => ({
   },
 });
 
+// Search Box API interfaces for better hotel/theme park search
+export interface SearchSuggestion {
+  name: string;
+  name_preferred?: string;
+  mapbox_id: string;
+  feature_type: string;
+  address?: string;
+  full_address?: string;
+  place_formatted: string;
+  context: {
+    country?: { name: string; country_code: string };
+    region?: { name: string; region_code: string };
+    place?: { name: string };
+    locality?: { name: string };
+    neighborhood?: { name: string };
+  };
+  poi_category?: string[];
+  poi_category_ids?: string[];
+  distance?: number;
+  eta?: number;
+}
+
+export interface SearchBoxResult {
+  suggestions: SearchSuggestion[];
+  attribution: string;
+}
+
+export interface RetrieveResult {
+  type: string;
+  geometry: {
+    type: string;
+    coordinates: [number, number];
+  };
+  properties: {
+    name: string;
+    name_preferred?: string;
+    mapbox_id: string;
+    feature_type: string;
+    address?: string;
+    full_address?: string;
+    place_formatted: string;
+    context: any;
+    coordinates: {
+      latitude: number;
+      longitude: number;
+    };
+    poi_category?: string[];
+    poi_category_ids?: string[];
+  };
+}
+
+// Enhanced search using Search Box API for hotels, theme parks, and tourist attractions
+export const searchBoxSuggest = async (
+  query: string, 
+  sessionToken: string,
+  options: {
+    proximity?: [number, number];
+    country?: string;
+    poiCategories?: string[];
+    limit?: number;
+  } = {}
+): Promise<SearchBoxResult> => {
+  if (!MAPBOX_CONFIG.accessToken) {
+    throw new Error('Mapbox access token is required');
+  }
+
+  const params = new URLSearchParams({
+    q: query,
+    access_token: MAPBOX_CONFIG.accessToken,
+    session_token: sessionToken,
+    language: 'en',
+    limit: (options.limit || 8).toString(),
+    types: 'poi,address,place,locality,neighborhood'
+  });
+
+  // Add proximity for better local results
+  if (options.proximity) {
+    params.append('proximity', `${options.proximity[0]},${options.proximity[1]}`);
+  }
+
+  // Focus on US locations (can be made configurable)
+  if (options.country) {
+    params.append('country', options.country);
+  }
+
+  // Filter by POI categories for hotels, theme parks, etc.
+  if (options.poiCategories && options.poiCategories.length > 0) {
+    params.append('poi_category', options.poiCategories.join(','));
+  }
+
+  const response = await fetch(
+    `https://api.mapbox.com/search/searchbox/v1/suggest?${params}`
+  );
+
+  if (!response.ok) {
+    throw new Error(`Search Box API error: ${response.status} ${response.statusText}`);
+  }
+
+  return await response.json();
+};
+
+export const searchBoxRetrieve = async (
+  mapboxId: string,
+  sessionToken: string
+): Promise<RetrieveResult> => {
+  if (!MAPBOX_CONFIG.accessToken) {
+    throw new Error('Mapbox access token is required');
+  }
+
+  const params = new URLSearchParams({
+    access_token: MAPBOX_CONFIG.accessToken,
+    session_token: sessionToken
+  });
+
+  const response = await fetch(
+    `https://api.mapbox.com/search/searchbox/v1/retrieve/${mapboxId}?${params}`
+  );
+
+  if (!response.ok) {
+    throw new Error(`Retrieve API error: ${response.status} ${response.statusText}`);
+  }
+
+  return await response.json();
+};
+
+// Utility to generate session tokens for billing optimization
+export const generateSessionToken = (): string => {
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = Math.random() * 16 | 0;
+    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+    return v.toString(16);
+  });
+};
+
+// Legacy geocoding function (keeping for backward compatibility)
 export const mapboxGeocode = async (query: string): Promise<GeocodeResult[]> => {
   if (!MAPBOX_CONFIG.accessToken) {
     throw new Error('Mapbox access token is required');

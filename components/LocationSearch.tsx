@@ -3,34 +3,32 @@
 import { useState, useRef, useEffect } from 'react'
 import { MapPin, Loader2, Navigation } from 'lucide-react'
 import ErrorPopup from './ErrorPopup'
-
-interface LocationSuggestion {
-  id: string
-  place_name: string
-  center: [number, number]
-  place_type: string[]
-  properties: {
-    short_code?: string
-  }
-}
+import { searchBoxSuggest, searchBoxRetrieve, generateSessionToken, SearchSuggestion } from '../lib/mapbox'
 
 interface LocationSearchProps {
   onLocationSelect: (location: { name: string; lat: number; lng: number }) => void
   placeholder?: string
   className?: string
+  focusOnHotels?: boolean
+  focusOnThemeParks?: boolean
+  focusOnTouristAttractions?: boolean
 }
 
 export default function LocationSearch({ 
   onLocationSelect, 
   placeholder = "Where are you going?",
-  className = ""
+  className = "",
+  focusOnHotels = false,
+  focusOnThemeParks = false,
+  focusOnTouristAttractions = false
 }: LocationSearchProps) {
   const [query, setQuery] = useState('')
-  const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([])
+  const [suggestions, setSuggestions] = useState<SearchSuggestion[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [showSuggestions, setShowSuggestions] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [isGettingLocation, setIsGettingLocation] = useState(false)
+  const [sessionToken] = useState(() => generateSessionToken())
   const inputRef = useRef<HTMLInputElement>(null)
   const suggestionsRef = useRef<HTMLDivElement>(null)
 
@@ -52,6 +50,24 @@ export default function LocationSearch({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
 
+  const getPOICategories = (): string[] => {
+    const categories: string[] = []
+    
+    if (focusOnHotels) {
+      categories.push('accommodation', 'lodging')
+    }
+    
+    if (focusOnThemeParks) {
+      categories.push('amusement_park', 'theme_park', 'entertainment')
+    }
+    
+    if (focusOnTouristAttractions) {
+      categories.push('tourist_attraction', 'museum', 'landmark', 'zoo', 'aquarium')
+    }
+    
+    return categories
+  }
+
   const searchLocations = async (searchQuery: string) => {
     if (!searchQuery.trim() || !MAPBOX_TOKEN) {
       setSuggestions([])
@@ -62,24 +78,16 @@ export default function LocationSearch({
     setError(null)
 
     try {
-      // Enhanced search with multiple types and better parameters
-      const response = await fetch(
-        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchQuery)}.json?` +
-        new URLSearchParams({
-          access_token: MAPBOX_TOKEN,
-          limit: '8',
-          types: 'country,region,postcode,district,place,locality,neighborhood,address,poi',
-          language: 'en',
-          autocomplete: 'true'
-        })
-      )
+      const poiCategories = getPOICategories()
+      
+      const result = await searchBoxSuggest(searchQuery, sessionToken, {
+        proximity: [-118.2437, 34.0522], // Default to LA area
+        country: 'US',
+        poiCategories: poiCategories.length > 0 ? poiCategories : undefined,
+        limit: 8
+      })
 
-      if (!response.ok) {
-        throw new Error(`Geocoding API error: ${response.status}`)
-      }
-
-      const data = await response.json()
-      setSuggestions(data.features || [])
+      setSuggestions(result.suggestions || [])
       setShowSuggestions(true)
     } catch (err) {
       console.error('Location search error:', err)
@@ -102,16 +110,31 @@ export default function LocationSearch({
     }
   }
 
-  const handleSuggestionClick = (suggestion: LocationSuggestion) => {
-    const [lng, lat] = suggestion.center
-    setQuery(suggestion.place_name)
-    setSuggestions([])
-    setShowSuggestions(false)
-    onLocationSelect({
-      name: suggestion.place_name,
-      lat,
-      lng
-    })
+  const handleSuggestionClick = async (suggestion: SearchSuggestion) => {
+    try {
+      setIsLoading(true)
+      
+      // Retrieve full details including coordinates
+      const details = await searchBoxRetrieve(suggestion.mapbox_id, sessionToken)
+      
+      const [lng, lat] = details.geometry.coordinates
+      const displayName = suggestion.name_preferred || suggestion.name
+      
+      setQuery(displayName)
+      setSuggestions([])
+      setShowSuggestions(false)
+      
+      onLocationSelect({
+        name: displayName,
+        lat,
+        lng
+      })
+    } catch (err) {
+      console.error('Error retrieving location details:', err)
+      setError('Failed to get location details. Please try again.')
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   const getCurrentLocation = () => {
@@ -128,7 +151,7 @@ export default function LocationSearch({
         const { latitude, longitude } = position.coords
         
         try {
-          // Reverse geocoding to get location name
+          // Use reverse geocoding to get location name
           const response = await fetch(
             `https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?` +
             new URLSearchParams({
@@ -187,6 +210,21 @@ export default function LocationSearch({
     )
   }
 
+  const formatSuggestionDisplay = (suggestion: SearchSuggestion) => {
+    const name = suggestion.name_preferred || suggestion.name
+    const categories = suggestion.poi_category || []
+    const isHotel = categories.some(cat => cat.includes('accommodation') || cat.includes('lodging') || cat.includes('hotel'))
+    const isThemePark = categories.some(cat => cat.includes('amusement') || cat.includes('theme') || cat.includes('entertainment'))
+    const isTouristAttraction = categories.some(cat => cat.includes('tourist') || cat.includes('attraction') || cat.includes('museum'))
+    
+    let typeIcon = '📍'
+    if (isHotel) typeIcon = '🏨'
+    else if (isThemePark) typeIcon = '🎢'
+    else if (isTouristAttraction) typeIcon = '🎯'
+    
+    return { name, typeIcon, address: suggestion.place_formatted }
+  }
+
   return (
     <div className={`relative ${className}`}>
       <div className="relative">
@@ -199,26 +237,17 @@ export default function LocationSearch({
           type="text"
           value={query}
           onChange={handleInputChange}
-          onFocus={() => {
-            if (suggestions.length > 0) {
-              setShowSuggestions(true)
-            }
-          }}
+          onFocus={() => setShowSuggestions(suggestions.length > 0)}
           placeholder={placeholder}
-          className="w-full pl-10 pr-12 py-3 text-gray-900 placeholder-gray-500 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
-          style={{ color: '#111827' }} // Ensure text is always dark
+          className="block w-full pl-10 pr-12 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
         
         <div className="absolute inset-y-0 right-0 flex items-center">
-          {isLoading && (
-            <Loader2 className="h-5 w-5 text-gray-400 animate-spin mr-3" />
-          )}
-          
           <button
             type="button"
             onClick={getCurrentLocation}
             disabled={isGettingLocation}
-            className="mr-3 p-1 text-gray-500 hover:text-primary-600 disabled:opacity-50"
+            className="mr-3 p-1 text-gray-500 hover:text-blue-600 disabled:opacity-50"
             title="Use current location"
           >
             {isGettingLocation ? (
@@ -227,6 +256,12 @@ export default function LocationSearch({
               <Navigation className="h-5 w-5" />
             )}
           </button>
+          
+          {isLoading && (
+            <div className="mr-3">
+              <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+            </div>
+          )}
         </div>
       </div>
 
@@ -236,34 +271,45 @@ export default function LocationSearch({
           ref={suggestionsRef}
           className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"
         >
-          {suggestions.map((suggestion) => (
-            <button
-              key={suggestion.id}
-              onClick={() => handleSuggestionClick(suggestion)}
-              className="w-full px-4 py-3 text-left text-gray-900 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none border-b border-gray-100 last:border-b-0"
-            >
-              <div className="flex items-center">
-                <MapPin className="h-4 w-4 text-gray-400 mr-3 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-gray-900 truncate">
-                    {suggestion.place_name}
-                  </div>
-                  {suggestion.place_type && (
-                    <div className="text-xs text-gray-500 capitalize">
-                      {suggestion.place_type.join(', ')}
+          {suggestions.map((suggestion, index) => {
+            const { name, typeIcon, address } = formatSuggestionDisplay(suggestion)
+            return (
+              <button
+                key={suggestion.mapbox_id}
+                onClick={() => handleSuggestionClick(suggestion)}
+                className="w-full px-4 py-3 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none border-b border-gray-100 last:border-b-0"
+              >
+                <div className="flex items-start">
+                  <span className="text-lg mr-3 flex-shrink-0">{typeIcon}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-gray-900 truncate">
+                      {name}
                     </div>
-                  )}
+                    {address && (
+                      <div className="text-xs text-gray-500 mt-1 truncate">
+                        {address}
+                      </div>
+                    )}
+                    {suggestion.poi_category && suggestion.poi_category.length > 0 && (
+                      <div className="text-xs text-blue-600 mt-1">
+                        {suggestion.poi_category.slice(0, 2).join(', ')}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </button>
-          ))}
+              </button>
+            )
+          })}
         </div>
       )}
 
       {/* Error popup */}
       {error && (
         <ErrorPopup
-          error={{ message: error, type: 'error' }}
+          error={{
+            message: error,
+            type: 'error'
+          }}
           onClose={() => setError(null)}
           autoClose={true}
           duration={5000}

@@ -5,7 +5,17 @@ import { useSearchParams } from 'next/navigation'
 import { Search, MapPin, Calendar, Star, Filter, Heart, Map, List } from 'lucide-react'
 import Image from 'next/image'
 import dynamic from 'next/dynamic'
-import { MapLocation } from '@/lib/mapbox'
+interface MapLocation {
+  id: string;
+  title: string;
+  description: string;
+  latitude: number;
+  longitude: number;
+  price: number;
+  type: string;
+  image?: string;
+  features: string[];
+}
 import LocationSearch from '@/components/LocationSearch'
 import ErrorPopup from '@/components/ErrorPopup'
 
@@ -91,10 +101,7 @@ export default function SearchPage() {
   return (
     <div className="min-h-screen bg-gray-50">
       <ErrorPopup
-        message={error?.message}
-        errorCode={error?.code}
-        type={error?.type || 'error'}
-        isOpen={!!error}
+        error={error}
         onClose={() => setError(null)}
         autoClose={false}
       />
@@ -153,12 +160,11 @@ export default function SearchPage() {
                   onLocationSelect={(location) => {
                     // Update URL with new location parameters
                     const newUrl = new URL(window.location.href)
-                    newUrl.searchParams.set('lat', location.latitude.toString())
-                    newUrl.searchParams.set('lng', location.longitude.toString())
+                    newUrl.searchParams.set('lat', location.lat.toString())
+                    newUrl.searchParams.set('lng', location.lng.toString())
                     newUrl.searchParams.set('radius', '10')
                     window.location.href = newUrl.toString()
                   }}
-                  showMap={false}
                 />
                 
                 {lat && lng && (

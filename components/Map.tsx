@@ -5,7 +5,7 @@ import Map, { Marker, Popup, NavigationControl, GeolocateControl } from 'react-m
 import { MapPin, DollarSign, Star } from 'lucide-react';
 import 'mapbox-gl/dist/mapbox-gl.css';
 import { MAPBOX_CONFIG, MapLocation, mapboxGeocode } from '@/lib/mapbox';
-import ErrorPopup from './ErrorPopup';
+import ErrorPopup from '@/components/ErrorPopup';
 
 interface MapComponentProps {
   locations?: MapLocation[];

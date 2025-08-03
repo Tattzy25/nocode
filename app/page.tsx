@@ -5,47 +5,59 @@ import { Search, MapPin, Calendar, Shield, Clock, Award, Star, Users, CheckCircl
 import LocationSearch from '@/components/LocationSearch'
 import Link from 'next/link'
 import ErrorPopup from '@/components/ErrorPopup'
-import { getData } from './actions'
-
-interface Equipment {
-  id: string
-  title: string
-  equipment_type: string
-  scooter_subtype?: string
-  stroller_subtype?: string
-  location: string
-  daily_price: string
-  images: string
-  features: string
-  brand: string
-  model: string
-  first_name?: string
-  last_name?: string
-}
+import { getData, Equipment } from './actions'
 
 export default function HomePage() {
   const [searchLocation, setSearchLocation] = useState('')
+  const [selectedLocation, setSelectedLocation] = useState<{name: string, lat: number, lng: number} | null>(null)
   const [startDate, setStartDate] = useState('')
   const [endDate, setEndDate] = useState('')
   const [featuredScooters, setFeaturedScooters] = useState<Equipment[]>([])
   const [featuredStrollers, setFeaturedStrollers] = useState<Equipment[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<{ message: string; code?: string } | null>(null)
+  const [error, setError] = useState<{
+    message: string
+    code?: string
+    type?: 'error' | 'warning' | 'info'
+  } | null>(null)
 
-  useEffect(() => {
-    fetchFeaturedEquipment()
-  }, [])
+  const handleSearch = () => {
+    if (!selectedLocation) {
+      alert('Please select a location first')
+      return
+    }
+    
+    const searchParams = new URLSearchParams({
+      lat: selectedLocation.lat.toString(),
+      lng: selectedLocation.lng.toString(),
+      radius: '10'
+    })
+    
+    if (startDate) {
+      searchParams.append('startDate', startDate)
+    }
+    
+    if (endDate) {
+      searchParams.append('endDate', endDate)
+    }
+    
+    window.location.href = `/search?${searchParams.toString()}`
+   }
+
+   useEffect(() => {
+     fetchFeaturedEquipment()
+   }, [])
 
   const fetchFeaturedEquipment = async () => {
     try {
       const data = await getData()
       
       if (data && data.length > 0) {
-        const scooters = data.filter((item: Equipment) => item.equipment_type === 'mobility_scooter').slice(0, 3)
-        const strollers = data.filter((item: Equipment) => item.equipment_type === 'baby_stroller').slice(0, 3)
+        const scooters = data.filter((item) => item.equipment_type === 'mobility_scooter').slice(0, 3)
+        const strollers = data.filter((item) => item.equipment_type === 'baby_stroller').slice(0, 3)
         
-        setFeaturedScooters(scooters as Equipment[])
-        setFeaturedStrollers(strollers as Equipment[])
+        setFeaturedScooters(scooters)
+        setFeaturedStrollers(strollers)
       }
     } catch (error) {
       console.error('Error fetching featured equipment:', error)
@@ -92,8 +104,10 @@ export default function HomePage() {
                   </label>
                   <LocationSearch 
                     onLocationSelect={(location) => {
-                      window.location.href = `/search?lat=${location.lat}&lng=${location.lng}&radius=10`
+                      setSelectedLocation(location)
+                      setSearchLocation(location.name)
                     }}
+                    placeholder="Where are you going?"
                   />
                 </div>
                 
@@ -129,7 +143,10 @@ export default function HomePage() {
               </div>
               
               <div className="px-4 pb-4">
-                <button className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white py-4 px-8 rounded-xl font-bold text-lg hover:from-pink-600 hover:to-rose-600 flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl">
+                <button 
+                  onClick={handleSearch}
+                  className="w-full bg-gradient-to-r from-pink-500 to-rose-500 text-white py-4 px-8 rounded-xl font-bold text-lg hover:from-pink-600 hover:to-rose-600 flex items-center justify-center transition-all duration-200 shadow-lg hover:shadow-xl"
+                >
                   <Search className="h-6 w-6 mr-3" />
                   Search
                 </button>
@@ -266,16 +283,24 @@ export default function HomePage() {
               featuredScooters.map((scooter) => (
                 <Link href={`/equipment/${scooter.id}`} key={scooter.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden hover-card-shadow transition-shadow">
                   <div className="h-48 bg-gray-200 relative">
-                    {scooter.images && JSON.parse(scooter.images)[0] && (
-                      <img 
-                        src={JSON.parse(scooter.images)[0]} 
-                        alt={scooter.title}
+                    {(() => {
+                      try {
+                        const images = scooter.images ? JSON.parse(scooter.images) : [];
+                        return images[0] && (
+                          <img 
+                            src={images[0]} 
+                            alt={scooter.title}
                         className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                        }}
-                      />
-                    )}
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none'
+                          }}
+                        />
+                        );
+                      } catch (error) {
+                        console.error('Error parsing images for scooter:', scooter.id, error);
+                        return null;
+                      }
+                    })()}
                   </div>
                   <div className="p-4">
                     <div className="flex justify-between items-start mb-2">
@@ -321,16 +346,24 @@ export default function HomePage() {
               featuredStrollers.map((stroller) => (
                 <Link href={`/equipment/${stroller.id}`} key={stroller.id} className="bg-white border border-gray-200 rounded-lg overflow-hidden hover-card-shadow transition-shadow">
                   <div className="h-48 bg-gray-200 relative">
-                    {stroller.images && JSON.parse(stroller.images)[0] && (
-                      <img 
-                        src={JSON.parse(stroller.images)[0]} 
-                        alt={stroller.title}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                        }}
-                      />
-                    )}
+                    {(() => {
+                      try {
+                        const images = stroller.images ? JSON.parse(stroller.images) : [];
+                        return images[0] && (
+                          <img 
+                            src={images[0]} 
+                            alt={stroller.title}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        );
+                      } catch (error) {
+                        console.error('Error parsing images for stroller:', stroller.id, error);
+                        return null;
+                      }
+                    })()}
                   </div>
                   <div className="p-4">
                     <div className="flex justify-between items-start mb-2">

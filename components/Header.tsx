@@ -49,27 +49,7 @@ export default function Header() {
 
       {/* Full-screen overlay menu */}
       {isMenuOpen && (
-        <div className="fixed inset-0 z-40 bg-white">
-          {/* Header in overlay */}
-          <div className="bg-white shadow-sm border-b">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-              <div className="flex justify-between items-center h-16">
-                <div className="flex-shrink-0">
-                  <Link href="/" className="text-2xl font-bold text-primary-600" onClick={closeMenu}>
-                    Scoovio
-                  </Link>
-                </div>
-                <button
-                  onClick={closeMenu}
-                  className="text-gray-700 hover:text-primary-600 p-2 rounded-md transition-colors"
-                  aria-label="Close menu"
-                >
-                  <X size={24} />
-                </button>
-              </div>
-            </div>
-          </div>
-
+        <div className="fixed inset-0 z-40 bg-white pt-16">
           {/* Menu content */}
           <div className="px-4 sm:px-6 lg:px-8 py-8">
             <div className="max-w-7xl mx-auto">
