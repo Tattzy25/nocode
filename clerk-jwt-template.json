@@ -1,0 +1,23 @@
+{
+  "name": "scoovio",
+  "description": "Optimized JWT template for Scoovio - lean payload for mobile and web performance",
+  "claims": {
+    "user_id": "{{user.id}}",
+    "email": "{{user.primary_email_address}}",
+    "username": "{{user.username}}",
+    "role": "{{user.public_metadata.role || 'user'}}",
+    "is_host": "{{user.public_metadata.is_host || false}}",
+    "phone": "{{user.primary_phone_number}}",
+    "created_at": "{{user.created_at}}",
+    "preferences": {
+      "currency": "{{user.public_metadata.currency || 'USD'}}",
+      "language": "{{user.public_metadata.language || 'en'}}"
+    },
+    "app_metadata": {
+      "subscription_tier": "{{user.public_metadata.subscription_tier || 'free'}}",
+      "verification_status": "{{user.public_metadata.verification_status || 'pending'}}"
+    }
+  },
+  "lifetime": 86400,
+  "allowed_clock_skew": 60000
+}

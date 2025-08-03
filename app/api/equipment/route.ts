@@ -24,7 +24,7 @@ const equipmentSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -49,6 +49,9 @@ export async function POST(request: NextRequest) {
     const newEquipment = await db.insert(equipment).values({
       host_id: user[0].id,
       ...validatedData,
+      daily_price: validatedData.daily_price.toString(),
+      latitude: validatedData.latitude?.toString(),
+      longitude: validatedData.longitude?.toString(),
       verification_documents: [],
       is_verified: false,
       is_active: true,
@@ -79,6 +82,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// Fixed GET function with proper error handling and JSON response
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -88,66 +92,90 @@ export async function GET(request: NextRequest) {
     const minPrice = searchParams.get('minPrice');
     const maxPrice = searchParams.get('maxPrice');
     const features = searchParams.get('features');
+    const limit = searchParams.get('limit');
 
-    const lat = searchParams.get('lat')
-    const lng = searchParams.get('lng')
-    const radius = searchParams.get('radius') // in kilometers
+    const lat = searchParams.get('lat');
+    const lng = searchParams.get('lng');
+    const radius = searchParams.get('radius');
 
-    let query = db.select().from(equipment).where(eq(equipment.is_active, true));
+    let conditions = [eq(equipment.is_active, true)];
 
     // Location-based filtering
     if (lat && lng && radius) {
-      const latNum = parseFloat(lat)
-      const lngNum = parseFloat(lng)
-      const radiusNum = parseFloat(radius)
+      const latNum = parseFloat(lat);
+      const lngNum = parseFloat(lng);
+      const radiusNum = parseFloat(radius);
       
-      // Using Haversine formula for distance calculation
-      // This is a simplified version - in production, use PostGIS
-      const earthRadius = 6371 // Earth's radius in km
-      const maxLat = latNum + (radiusNum / earthRadius) * (180 / Math.PI)
-      const minLat = latNum - (radiusNum / earthRadius) * (180 / Math.PI)
-      const maxLng = lngNum + (radiusNum / earthRadius) * (180 / Math.PI) / Math.cos(latNum * Math.PI / 180)
-      const minLng = lngNum - (radiusNum / earthRadius) * (180 / Math.PI) / Math.cos(latNum * Math.PI / 180)
+      const earthRadius = 6371;
+      const maxLat = latNum + (radiusNum / earthRadius) * (180 / Math.PI);
+      const minLat = latNum - (radiusNum / earthRadius) * (180 / Math.PI);
+      const maxLng = lngNum + (radiusNum / earthRadius) * (180 / Math.PI) / Math.cos(latNum * Math.PI / 180);
+      const minLng = lngNum - (radiusNum / earthRadius) * (180 / Math.PI) / Math.cos(latNum * Math.PI / 180);
 
-      query = query.where(
-        and(
-          eq(equipment.is_active, true),
-          gte(equipment.latitude, minLat),
-          lte(equipment.latitude, maxLat),
-          gte(equipment.longitude, minLng),
-          lte(equipment.longitude, maxLng)
-        )
-      )
+      conditions.push(
+        gte(equipment.latitude, minLat.toString()),
+        lte(equipment.latitude, maxLat.toString()),
+        gte(equipment.longitude, minLng.toString()),
+        lte(equipment.longitude, maxLng.toString())
+      );
     }
 
     if (type) {
-      query = query.where(eq(equipment.equipment_type, type as any));
+      conditions.push(eq(equipment.equipment_type, type as any));
     }
     if (subtype) {
       if (type === 'mobility_scooter') {
-        query = query.where(eq(equipment.scooter_subtype, subtype as any));
+        conditions.push(eq(equipment.scooter_subtype, subtype as any));
       } else if (type === 'baby_stroller') {
-        query = query.where(eq(equipment.stroller_subtype, subtype as any));
+        conditions.push(eq(equipment.stroller_subtype, subtype as any));
       }
     }
     if (location) {
-      query = query.where(sql`${equipment.location} ILIKE ${`%${location}%`}`);
+      conditions.push(sql`${equipment.location} ILIKE ${`%${location}%`}`);
     }
     if (minPrice) {
-      query = query.where(gte(equipment.daily_price, parseInt(minPrice)));
+      conditions.push(gte(equipment.daily_price, parseInt(minPrice)));
     }
     if (maxPrice) {
-      query = query.where(lte(equipment.daily_price, parseInt(maxPrice)));
+      conditions.push(lte(equipment.daily_price, parseInt(maxPrice)));
     }
     if (features) {
       const featureList = features.split(',');
-      query = query.where(sql`${equipment.features} && ${featureList}`);
+      conditions.push(sql`${equipment.features} && ${featureList}`);
+    }
+
+    let query = db.select().from(equipment).where(and(...conditions));
+    
+    if (limit) {
+      const limitNum = parseInt(limit);
+      if (!isNaN(limitNum) && limitNum > 0) {
+        query = query.limit(limitNum);
+      }
     }
 
     const results = await query;
-    return NextResponse.json(results);
+    
+    // Always return a proper JSON response with equipment array
+    return NextResponse.json({ 
+      equipment: results,
+      total: results.length 
+    }, { 
+      status: 200,
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
   } catch (error) {
     console.error('Error fetching equipment:', error);
-    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+    return NextResponse.json({ 
+      error: 'Internal server error',
+      equipment: [],
+      total: 0
+    }, { 
+      status: 500,
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
   }
 }

@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { Calendar, MapPin, Clock, Star, Heart, MessageCircle, CreditCard } from 'lucide-react'
+import { useUser } from '@clerk/nextjs'
 import ErrorPopup from '@/components/ErrorPopup'
+import ProfileImage from '@/components/ProfileImage'
 
 interface Booking {
   id: string
@@ -25,28 +27,44 @@ interface SavedItem {
 }
 
 export default function UserDashboard() {
+  const { user } = useUser()
   const [activeTab, setActiveTab] = useState('upcoming')
   const [upcomingTrips, setUpcomingTrips] = useState<Booking[]>([])
   const [pastTrips, setPastTrips] = useState<Booking[]>([])
   const [savedItems, setSavedItems] = useState<SavedItem[]>([])
+  const [totalBookings, setTotalBookings] = useState(0)
+  const [totalListings, setTotalListings] = useState(0)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<{ message: string; code?: string } | null>(null)
+  const [timezone, setTimezone] = useState('UTC')
+  const [userTimezone, setUserTimezone] = useState('UTC')
 
   useEffect(() => {
-    fetchDashboardData()
-  }, [])
+    // Set timezone from browser
+    const detectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone
+    setTimezone(detectedTimezone)
+    setUserTimezone(detectedTimezone)
+    
+    if (user) {
+      fetchDashboardData()
+    }
+  }, [user])
 
   const fetchDashboardData = async () => {
+    if (!user) return
+    
     try {
       const [bookingsRes, savedRes] = await Promise.all([
-        fetch('/api/user/bookings'),
-        fetch('/api/user/saved')
+        fetch(`/api/user/bookings?userId=${user.id}&timezone=${timezone}`),
+        fetch(`/api/user/saved?userId=${user.id}`)
       ])
 
       if (bookingsRes.ok) {
         const bookingsData = await bookingsRes.json()
         setUpcomingTrips(bookingsData.upcoming || [])
         setPastTrips(bookingsData.past || [])
+        setTotalBookings(bookingsData.total_bookings || 0)
+        setTotalListings(bookingsData.total_listings || 0)
       }
 
       if (savedRes.ok) {
@@ -72,8 +90,19 @@ export default function UserDashboard() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           {/* Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900">My trips</h1>
-            <p className="text-gray-600 mt-2">Manage your bookings and track your rental history</p>
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">My trips</h1>
+                <p className="text-gray-600 mt-2">Manage your bookings and track your rental history</p>
+              </div>
+              <div className="flex items-center space-x-4">
+                <ProfileImage userId={user?.id || ''} size={48} className="border-2 border-white shadow-lg" />
+                <div>
+                  <p className="text-xs text-gray-500">{userTimezone}</p>
+                  <p className="text-sm font-medium">{totalBookings} bookings • {totalListings} listings</p>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Navigation Tabs */}
@@ -145,12 +174,17 @@ export default function UserDashboard() {
                         </div>
                       </div>
 
-                      <div className="mt-4 flex items-center text-sm text-gray-600">
-                        <Calendar className="h-4 w-4 mr-1" />
-                        <span>{trip.start_date} - {trip.end_date}</span>
-                        <span className="ml-4 px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
-                          {trip.status}
-                        </span>
+                      <div className="mt-4 space-y-2">
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Calendar className="h-4 w-4 mr-1" />
+                          <span>{trip.start_date_local} - {trip.end_date_local}</span>
+                          <span className="ml-4 px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                            {trip.status}
+                          </span>
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          UTC: {trip.start_date} - {trip.end_date}
+                        </div>
                       </div>
 
                       <div className="mt-4 flex space-x-3">

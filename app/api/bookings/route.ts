@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs';
+import { auth } from '@clerk/nextjs/server';
 import { db } from '@/lib/db';
 import { bookings, equipment, users } from '@/lib/db/schema';
 import { eq, and, gte, lte, between } from 'drizzle-orm';
@@ -14,7 +14,7 @@ const bookingSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     const startDate = new Date(validatedData.start_date);
     const endDate = new Date(validatedData.end_date);
     const days = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-    const totalPrice = days * equipmentItem[0].daily_price;
+    const totalPrice = days * Number(equipmentItem[0].daily_price);
 
     // Create booking
     const newBooking = await db.insert(bookings).values({
@@ -52,7 +52,7 @@ export async function POST(request: NextRequest) {
       host_id: equipmentItem[0].host_id,
       start_date: validatedData.start_date,
       end_date: validatedData.end_date,
-      total_price: totalPrice,
+      total_price: totalPrice.toString(),
       guest_message: validatedData.guest_message,
     }).returning();
 
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -82,6 +82,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
 
+    // Fixed query construction
     let query;
     if (type === 'guest') {
       query = db.select({
@@ -98,6 +99,10 @@ export async function GET(request: NextRequest) {
       .leftJoin(equipment, eq(bookings.equipment_id, equipment.id))
       .leftJoin(users, eq(bookings.host_id, users.id))
       .where(eq(bookings.guest_id, user[0].id));
+      
+      if (status) {
+        query = query.where(eq(bookings.status, status as any));
+      }
     } else if (type === 'host') {
       query = db.select({
         booking: bookings,
@@ -113,12 +118,12 @@ export async function GET(request: NextRequest) {
       .leftJoin(equipment, eq(bookings.equipment_id, equipment.id))
       .leftJoin(users, eq(bookings.guest_id, users.id))
       .where(eq(bookings.host_id, user[0].id));
+      
+      if (status) {
+        query = query.where(eq(bookings.status, status as any));
+      }
     } else {
       return NextResponse.json({ error: 'Invalid type parameter' }, { status: 400 });
-    }
-
-    if (status) {
-      query = query.where(eq(bookings.status, status as any));
     }
 
     const results = await query;

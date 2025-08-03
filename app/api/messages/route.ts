@@ -1,9 +1,9 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs';
-import { db } from '@/lib/db';
-import { messages, users, bookings } from '@/lib/db/schema';
-import { eq, or, and, desc } from 'drizzle-orm';
-import { z } from 'zod';
+import { NextRequest, NextResponse } from 'next/server'
+import { auth } from '@clerk/nextjs/server'
+import { db } from '@/lib/db'
+import { messages, users, bookings } from '@/lib/db/schema'
+import { eq, and, or, desc, sql, inArray } from 'drizzle-orm'
+import { z } from 'zod'
 
 const messageSchema = z.object({
   receiver_id: z.string().uuid(),
@@ -13,7 +13,7 @@ const messageSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -144,24 +144,21 @@ export async function GET(request: NextRequest) {
       .orderBy(desc(messages.created_at));
     } else {
       // Get all conversations with latest message
-      const conversations = await db.execute({
-        sql: `
-          SELECT 
-            m.*,
-            u1.first_name as sender_first_name,
-            u1.last_name as sender_last_name,
-            u1.avatar_url as sender_avatar,
-            u2.first_name as receiver_first_name,
-            u2.last_name as receiver_last_name,
-            u2.avatar_url as receiver_avatar
-          FROM messages m
-          JOIN users u1 ON m.sender_id = u1.id
-          JOIN users u2 ON m.receiver_id = u2.id
-          WHERE m.sender_id = ? OR m.receiver_id = ?
-          ORDER BY m.created_at DESC
-        `,
-        params: [user[0].id, user[0].id]
-      });
+      const conversations = await db.execute(sql`
+        SELECT 
+          m.*,
+          u1.first_name as sender_first_name,
+          u1.last_name as sender_last_name,
+          u1.avatar_url as sender_avatar,
+          u2.first_name as receiver_first_name,
+          u2.last_name as receiver_last_name,
+          u2.avatar_url as receiver_avatar
+        FROM messages m
+        JOIN users u1 ON m.sender_id = u1.id
+        JOIN users u2 ON m.receiver_id = u2.id
+        WHERE m.sender_id = ${user[0].id} OR m.receiver_id = ${user[0].id}
+        ORDER BY m.created_at DESC
+      `);
 
       // Group by conversation
       const groupedConversations = new Map();
@@ -199,7 +196,7 @@ export async function GET(request: NextRequest) {
 // Mark messages as read
 export async function PATCH(request: NextRequest) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -219,7 +216,7 @@ export async function PATCH(request: NextRequest) {
       .where(
         and(
           eq(messages.receiver_id, user[0].id),
-          messages.id.in(message_ids)
+          inArray(messages.id, message_ids)
         )
       );
 

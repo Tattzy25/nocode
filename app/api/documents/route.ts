@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs';
+import { auth } from '@clerk/nextjs/server';
 import { db } from '@/lib/db';
 import { equipment_documents, equipment, users } from '@/lib/db/schema';
 import { eq, and } from 'drizzle-orm';
@@ -27,7 +27,7 @@ const documentSchema = z.object({
 // Generate presigned URL for upload
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -95,7 +95,7 @@ export async function POST(request: NextRequest) {
 // Get documents for equipment
 export async function GET(request: NextRequest) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -162,7 +162,7 @@ export async function GET(request: NextRequest) {
 // Update document verification status
 export async function PATCH(request: NextRequest) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -195,7 +195,7 @@ export async function PATCH(request: NextRequest) {
 // Delete document
 export async function DELETE(request: NextRequest) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -213,22 +213,22 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get document and verify ownership
+    // Fixed null checking in DELETE function
     const document = await db.select()
       .from(equipment_documents)
       .leftJoin(equipment, eq(equipment_documents.equipment_id, equipment.id))
       .where(eq(equipment_documents.id, documentId))
       .limit(1);
-
-    if (!document.length) {
+    
+    if (!document.length || !document[0].equipment) {
       return NextResponse.json({ error: 'Document not found' }, { status: 404 });
     }
-
+    
     // Verify user owns the equipment
     if (document[0].equipment.host_id !== user[0].id) {
       return NextResponse.json({ error: 'Not authorized to delete document' }, { status: 403 });
     }
-
-    // Delete from S3
+    
     const fileKey = document[0].equipment_documents.document_url.replace(`https://${BUCKET_NAME}.s3.amazonaws.com/`, '');
     
     await s3Client.send(new DeleteObjectCommand({

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs';
+import { auth } from '@clerk/nextjs/server';
 import { db } from '@/lib/db';
 import { availability, equipment } from '@/lib/db/schema';
 import { eq, and, between } from 'drizzle-orm';
@@ -14,7 +14,7 @@ const availabilitySchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
     const validatedData = availabilitySchema.parse(body);
 
     // Verify user owns the equipment
-    const user = await db.select().from(equipment).where(eq(equipment.host_id, userId as any)).limit(1);
+    const user = await db.select().from(equipment).where(eq(equipment.host_id, userId)).limit(1);
     if (!user.length) {
       return NextResponse.json({ error: 'Equipment not found or not owned by user' }, { status: 404 });
     }
@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// Fixed GET function with proper query chaining
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -97,7 +98,7 @@ export async function GET(request: NextRequest) {
 // Batch update availability
 export async function PUT(request: NextRequest) {
   try {
-    const { userId } = auth();
+    const { userId } = await auth();
     if (!userId) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -114,7 +115,7 @@ export async function PUT(request: NextRequest) {
     }).parse(body);
 
     // Verify user owns the equipment
-    const user = await db.select().from(equipment).where(eq(equipment.host_id, userId as any)).limit(1);
+    const user = await db.select().from(equipment).where(eq(equipment.host_id, userId)).limit(1);
     if (!user.length) {
       return NextResponse.json({ error: 'Equipment not found or not owned by user' }, { status: 404 });
     }

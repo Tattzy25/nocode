@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Search, MapPin, Calendar, Shield, Clock, Award, Star } from 'lucide-react'
+import { Search, MapPin, Calendar, Shield, Clock, Award, Star, Users, CheckCircle, Zap } from 'lucide-react'
 import LocationSearch from '@/components/LocationSearch'
 import Link from 'next/link'
 import ErrorPopup from '@/components/ErrorPopup'

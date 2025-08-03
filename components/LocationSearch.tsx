@@ -1,184 +1,273 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { MapPin, Search, LocateFixed } from 'lucide-react'
-import dynamic from 'next/dynamic'
-import { MapLocation, mapboxGeocode } from '@/lib/mapbox'
-import ErrorPopup from './ErrorPopup'
+import { useState, useRef, useEffect } from 'react'
+import { MapPin, Loader2, Navigation } from 'lucide-react'
+import { ErrorPopup } from './ErrorPopup'
 
-const MapComponent = dynamic(() => import('@/components/Map'), {
-  ssr: false,
-  loading: () => <div className="h-64 bg-gray-100 animate-pulse rounded-lg" />
-})
-
-interface LocationSearchProps {
-  onLocationSelect: (location: MapLocation) => void
-  showMap?: boolean
+interface LocationSuggestion {
+  id: string
+  place_name: string
+  center: [number, number]
+  place_type: string[]
+  properties: {
+    short_code?: string
+  }
 }
 
-export default function LocationSearch({ onLocationSelect, showMap = false }: LocationSearchProps) {
-  const [searchQuery, setSearchQuery] = useState('')
-  const [suggestions, setSuggestions] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
-  const [userLocation, setUserLocation] = useState<MapLocation | null>(null)
-  const [selectedLocation, setSelectedLocation] = useState<MapLocation | null>(null)
-  const [error, setError] = useState<{ message: string; code?: string } | null>(null)
+interface LocationSearchProps {
+  onLocationSelect: (location: { name: string; lat: number; lng: number }) => void
+  placeholder?: string
+  className?: string
+}
 
-  const handleSearch = async (query: string) => {
-    setSearchQuery(query)
-    if (query.length < 3) {
+export default function LocationSearch({ 
+  onLocationSelect, 
+  placeholder = "Where are you going?",
+  className = ""
+}: LocationSearchProps) {
+  const [query, setQuery] = useState('')
+  const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([])
+  const [isLoading, setIsLoading] = useState(false)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [isGettingLocation, setIsGettingLocation] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const suggestionsRef = useRef<HTMLDivElement>(null)
+
+  const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_ACCESS_TOKEN
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        inputRef.current && 
+        !inputRef.current.contains(event.target as Node) &&
+        suggestionsRef.current &&
+        !suggestionsRef.current.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const searchLocations = async (searchQuery: string) => {
+    if (!searchQuery.trim() || !MAPBOX_TOKEN) {
       setSuggestions([])
       return
     }
 
-    setLoading(true)
+    setIsLoading(true)
+    setError(null)
+
     try {
-      const results = await mapboxGeocode(query)
-      setSuggestions(results)
-    } catch (error) {
-      setError({
-        message: error instanceof Error ? error.message : 'Failed to search location',
-        code: 'LOCATION_SEARCH_ERROR'
-      })
+      // Enhanced search with multiple types and better parameters
+      const response = await fetch(
+        `https://api.mapbox.com/geocoding/v5/mapbox.places/${encodeURIComponent(searchQuery)}.json?` +
+        new URLSearchParams({
+          access_token: MAPBOX_TOKEN,
+          limit: '8',
+          types: 'country,region,postcode,district,place,locality,neighborhood,address,poi',
+          language: 'en',
+          autocomplete: 'true'
+        })
+      )
+
+      if (!response.ok) {
+        throw new Error(`Geocoding API error: ${response.status}`)
+      }
+
+      const data = await response.json()
+      setSuggestions(data.features || [])
+      setShowSuggestions(true)
+    } catch (err) {
+      console.error('Location search error:', err)
+      setError('Failed to search locations. Please try again.')
+      setSuggestions([])
     } finally {
-      setLoading(false)
+      setIsLoading(false)
     }
   }
 
-  const handleLocationSelect = (location: MapLocation) => {
-    setSelectedLocation(location)
-    setSearchQuery(location.title)
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value
+    setQuery(value)
+    
+    if (value.length > 2) {
+      searchLocations(value)
+    } else {
+      setSuggestions([])
+      setShowSuggestions(false)
+    }
+  }
+
+  const handleSuggestionClick = (suggestion: LocationSuggestion) => {
+    const [lng, lat] = suggestion.center
+    setQuery(suggestion.place_name)
     setSuggestions([])
-    onLocationSelect(location)
+    setShowSuggestions(false)
+    onLocationSelect({
+      name: suggestion.place_name,
+      lat,
+      lng
+    })
   }
 
   const getCurrentLocation = () => {
     if (!navigator.geolocation) {
-      setError({
-        message: 'Geolocation is not supported by your browser',
-        code: 'GEOLOCATION_NOT_SUPPORTED'
-      })
+      setError('Geolocation is not supported by this browser.')
       return
     }
 
-    setLoading(true)
+    setIsGettingLocation(true)
+    setError(null)
+
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         const { latitude, longitude } = position.coords
+        
         try {
-          const location = await mapboxGeocode(`${longitude},${latitude}`)
-          if (location.length > 0) {
-            const userLoc = {
-              id: 'user-location',
-              title: 'Your Location',
-              description: 'Current location',
-              latitude,
-              longitude,
-              price: 0,
-              type: 'location'
-            }
-            setUserLocation(userLoc)
-            handleLocationSelect({
-              id: 'user-location',
-              title: location[0].place_name,
-              description: 'Current location',
-              latitude: latitude,
-              longitude: longitude,
-              price: 0,
-              type: 'location'
+          // Reverse geocoding to get location name
+          const response = await fetch(
+            `https://api.mapbox.com/geocoding/v5/mapbox.places/${longitude},${latitude}.json?` +
+            new URLSearchParams({
+              access_token: MAPBOX_TOKEN!,
+              types: 'address,poi,place,locality'
             })
+          )
+
+          if (response.ok) {
+            const data = await response.json()
+            const locationName = data.features[0]?.place_name || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
+            setQuery(locationName)
+            onLocationSelect({
+              name: locationName,
+              lat: latitude,
+              lng: longitude
+            })
+          } else {
+            throw new Error('Failed to get location name')
           }
-        } catch (error) {
-          setError({
-            message: error instanceof Error ? error.message : 'Failed to get location details',
-            code: 'REVERSE_GEOCODE_ERROR'
+        } catch (err) {
+          console.error('Reverse geocoding error:', err)
+          const locationName = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
+          setQuery(locationName)
+          onLocationSelect({
+            name: locationName,
+            lat: latitude,
+            lng: longitude
           })
         } finally {
-          setLoading(false)
+          setIsGettingLocation(false)
         }
       },
       (error) => {
-        setError({
-          message: 'Unable to access your location. Please check your browser settings.',
-          code: `GEOLOCATION_${error.code}`
-        })
-        setLoading(false)
+        setIsGettingLocation(false)
+        switch (error.code) {
+          case error.PERMISSION_DENIED:
+            setError('Location access denied. Please enable location services.')
+            break
+          case error.POSITION_UNAVAILABLE:
+            setError('Location information is unavailable.')
+            break
+          case error.TIMEOUT:
+            setError('Location request timed out.')
+            break
+          default:
+            setError('An unknown error occurred while getting location.')
+            break
+        }
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 300000
       }
     )
   }
 
   return (
-    <div className="w-full max-w-4xl mx-auto">
-      <ErrorPopup 
-        error={error}
-        onClose={() => setError(null)}
-      />
+    <div className={`relative ${className}`}>
       <div className="relative">
-        <div className="flex items-center">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search by location..."
-              value={searchQuery}
-              onChange={(e) => handleSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            />
-          </div>
+        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+          <MapPin className="h-5 w-5 text-gray-500" />
+        </div>
+        
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={handleInputChange}
+          onFocus={() => {
+            if (suggestions.length > 0) {
+              setShowSuggestions(true)
+            }
+          }}
+          placeholder={placeholder}
+          className="w-full pl-10 pr-12 py-3 text-gray-900 placeholder-gray-500 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-primary-500 text-base"
+          style={{ color: '#111827' }} // Ensure text is always dark
+        />
+        
+        <div className="absolute inset-y-0 right-0 flex items-center">
+          {isLoading && (
+            <Loader2 className="h-5 w-5 text-gray-400 animate-spin mr-3" />
+          )}
+          
           <button
+            type="button"
             onClick={getCurrentLocation}
-            disabled={loading}
-            className="ml-2 p-3 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors disabled:opacity-50"
+            disabled={isGettingLocation}
+            className="mr-3 p-1 text-gray-500 hover:text-primary-600 disabled:opacity-50"
             title="Use current location"
           >
-            <LocateFixed className="h-5 w-5 text-gray-600" />
+            {isGettingLocation ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <Navigation className="h-5 w-5" />
+            )}
           </button>
         </div>
-
-        {suggestions.length > 0 && (
-          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg">
-            {suggestions.map((suggestion, index) => (
-              <button
-                key={index}
-                onClick={() => handleLocationSelect({
-                  id: suggestion.id || `suggestion-${index}`,
-                  title: suggestion.place_name || suggestion.title,
-                  description: suggestion.description,
-                  latitude: suggestion.center ? suggestion.center[1] : suggestion.latitude,
-                  longitude: suggestion.center ? suggestion.center[0] : suggestion.longitude,
-                  price: 0,
-                  type: 'search'
-                })}
-                className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
-              >
-                <div className="flex items-center">
-                  <MapPin className="h-4 w-4 text-gray-400 mr-2" />
-                  <span className="text-sm">{suggestion.place_name || suggestion.title}</span>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
       </div>
 
-      {showMap && selectedLocation && (
-        <div className="mt-4">
-          <MapComponent
-            locations={selectedLocation ? [selectedLocation] : []}
-            showSearch={false}
-            className="h-64 rounded-lg shadow-md"
-            center={[selectedLocation.longitude, selectedLocation.latitude]}
-          />
+      {/* Suggestions dropdown */}
+      {showSuggestions && suggestions.length > 0 && (
+        <div
+          ref={suggestionsRef}
+          className="absolute z-50 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto"
+        >
+          {suggestions.map((suggestion) => (
+            <button
+              key={suggestion.id}
+              onClick={() => handleSuggestionClick(suggestion)}
+              className="w-full px-4 py-3 text-left text-gray-900 hover:bg-gray-50 focus:bg-gray-50 focus:outline-none border-b border-gray-100 last:border-b-0"
+            >
+              <div className="flex items-center">
+                <MapPin className="h-4 w-4 text-gray-400 mr-3 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="text-sm font-medium text-gray-900 truncate">
+                    {suggestion.place_name}
+                  </div>
+                  {suggestion.place_type && (
+                    <div className="text-xs text-gray-500 capitalize">
+                      {suggestion.place_type.join(', ')}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </button>
+          ))}
         </div>
       )}
 
-      {userLocation && (
-        <div className="mt-4 p-4 bg-blue-50 rounded-lg">
-          <p className="text-sm text-blue-800">
-            <MapPin className="inline h-4 w-4 mr-1" />
-            Searching near your current location
-          </p>
-        </div>
+      {/* Error popup */}
+      {error && (
+        <ErrorPopup
+          message={error}
+          type="error"
+          onClose={() => setError(null)}
+          autoClose={5000}
+        />
       )}
     </div>
   )
